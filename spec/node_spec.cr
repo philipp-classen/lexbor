@@ -410,7 +410,7 @@ describe Lexbor::Node do
     it "serialize empty attrs" do
       parser = Lexbor.new(%Q[<html><body><span><div data-attr><div data-attr2=""></span></body></html>])
       node = parser.nodes(:span).first
-      node.to_html.should eq %Q[<span><div data-attr><div data-attr2=""></div></div></span>]
+      node.to_html.should eq %Q[<span><div data-attr=""><div data-attr2=""></div></div></span>]
     end
   end
 

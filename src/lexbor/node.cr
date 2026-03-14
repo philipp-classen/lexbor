@@ -135,12 +135,12 @@ struct Lexbor::Node
   end
 
   # :nodoc:
-  protected def each_inner_text(deep = true)
+  protected def each_inner_text(deep = true, &)
     each_inner_text_for_scope(deep ? scope : children) { |slice| yield slice }
   end
 
   # :nodoc:
-  protected def each_inner_text_for_scope(scope)
+  protected def each_inner_text_for_scope(scope, &)
     scope.nodes(Lib::TagIdT::LXB_TAG__TEXT).each { |node| yield node.tag_text_slice }
   end
 

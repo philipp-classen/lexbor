@@ -46,7 +46,7 @@ module Lexbor::Utils::DetectEncoding
     res
   end
 
-  def self.find_encodings_in_meta_raw(slice : Slice)
+  def self.find_encodings_in_meta_raw(slice : Slice, &)
     size = slice.bytesize
     size = {META_CHECK_LIMIT_BYTES, size}.min
 

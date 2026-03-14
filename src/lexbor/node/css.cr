@@ -32,7 +32,7 @@ struct Lexbor::Node
   # Example:
   #   some_node.css("div.red") { |node| p node }
   #
-  def css(arg)
+  def css(arg, &)
     collection = css(arg)
     collection.each do |node|
       yield node

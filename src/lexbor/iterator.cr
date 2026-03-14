@@ -36,7 +36,7 @@ module Lexbor::Iterator
     # Node filter with yield
     #   iterator.nodes("div") { |node| ... }
     #
-    def nodes(filter)
+    def nodes(filter, &)
       nodes(filter).each do |node|
         yield node
       end

@@ -103,7 +103,7 @@ class Lexbor::EncodingConverter
     @finished = false
   end
 
-  private def convert_buffer(buffer : Slice)
+  private def convert_buffer(buffer : Slice, &)
     buffer_ref = buffer.to_unsafe
 
     loop do
@@ -134,7 +134,7 @@ class Lexbor::EncodingConverter
     end
   end
 
-  private def finish_decode!
+  private def finish_decode!(&)
     LibEncoding.decode_finish(@decoder)
     size = LibEncoding.decode_buf_used(@decoder)
     if size != 0
@@ -150,7 +150,7 @@ class Lexbor::EncodingConverter
     end
   end
 
-  private def finish_encode!
+  private def finish_encode!(&)
     LibEncoding.encode_finish(@encoder)
     size = LibEncoding.encode_buf_used(@encoder)
     if size != 0
@@ -158,7 +158,7 @@ class Lexbor::EncodingConverter
     end
   end
 
-  def convert(io : IO)
+  def convert(io : IO, &)
     initialize_convert if @finished
 
     buf = Pointer(UInt8).malloc(@buffer_size)
@@ -185,7 +185,7 @@ class Lexbor::EncodingConverter
     end
   end
 
-  def convert(s : String)
+  def convert(s : String, &)
     convert(IO::Memory.new(s)) { |slice| yield slice }
     self
   end
@@ -198,7 +198,7 @@ class Lexbor::EncodingConverter
     end
   end
 
-  def convert(s : Slice)
+  def convert(s : Slice, &)
     convert(IO::Memory.new(s)) { |slice| yield slice }
     self
   end

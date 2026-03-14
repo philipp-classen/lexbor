@@ -72,7 +72,7 @@ struct Lexbor::Tokenizer::Token
   # :nodoc:
   @attributes : Hash(String, String)?
 
-  private def each_raw_attribute
+  private def each_raw_attribute(&)
     attr = @raw_token.attr_first
 
     while !attr.null?
@@ -99,13 +99,13 @@ struct Lexbor::Tokenizer::Token
     !@raw_token.attr_first.null?
   end
 
-  def each_sliced_attribute
+  def each_sliced_attribute(&)
     each_raw_attribute do |attr|
       yield(raw_key(attr), raw_value(attr))
     end
   end
 
-  def each_attribute
+  def each_attribute(&)
     each_sliced_attribute do |k, v|
       yield String.new(k), String.new(v)
     end

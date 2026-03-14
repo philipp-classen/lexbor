@@ -9,7 +9,7 @@ struct Lexbor::Node
 
   #
   # Children iterator with yield
-  def children
+  def children(&)
     children.each { |node| yield node }
   end
 
@@ -23,7 +23,7 @@ struct Lexbor::Node
 
   #
   # Scope iterator with yield
-  def scope
+  def scope(&)
     scope.each { |node| yield node }
   end
 
@@ -46,7 +46,7 @@ struct Lexbor::Node
 
   #
   # Parents iterator with yield
-  def parents
+  def parents(&)
     parents.each { |node| yield node }
   end
 
@@ -61,7 +61,7 @@ struct Lexbor::Node
 
   #
   # Left iterator with yeild
-  def left_iterator
+  def left_iterator(&)
     left_iterator.each { |node| yield node }
   end
 
@@ -76,7 +76,7 @@ struct Lexbor::Node
 
   #
   # Right iterator with yeild
-  def right_iterator
+  def right_iterator(&)
     right_iterator.each { |node| yield node }
   end
 end

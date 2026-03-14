@@ -236,7 +236,7 @@ class Lexbor::Parser
   #
   #   lexbor.nodes("div") { |node| ... }
   #
-  def nodes(filter)
+  def nodes(filter, &)
     nodes(filter).each { |node| yield node }
   end
 end

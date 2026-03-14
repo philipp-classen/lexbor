@@ -1,3 +1,6 @@
+## 3.5.0
+* update liblexbor to version 2.7.0
+
 ## 3.4.2
 * fix bug with `to_pretty_html` with one symbol text
 * add methods with yield for `scope`,`nodes`, `parents`, `children`, `left_iterator`, `right_iterator` methods

@@ -9,35 +9,166 @@ def cmd(cmd, args, chdir)
   end
 end
 
+def download_file(url, output_path)
+  puts "--- Downloading #{url} to #{output_path} ---"
+
+  {% if flag?(:win32) %}
+    if system("where curl > nul 2>&1")
+      cmd("curl", ["-L", url, "-o", output_path.to_s], Dir.current)
+    elsif system("where wget > nul 2>&1")
+      cmd("wget", ["-O", output_path.to_s, url], Dir.current)
+    elsif system("where powershell > nul 2>&1")
+      ps_command = "Invoke-WebRequest -Uri '#{url}' -OutFile '#{output_path}'"
+      cmd("powershell", ["-Command", ps_command], Dir.current)
+    else
+      puts "Error: No download tool found. Please install curl or wget."
+      exit 1
+    end
+  {% else %}
+    if system("command -v curl > /dev/null 2>&1")
+      cmd("curl", ["-L", url, "-o", output_path.to_s], Dir.current)
+    elsif system("command -v wget > /dev/null 2>&1")
+      cmd("wget", ["-O", output_path.to_s, url], Dir.current)
+    elsif system("command -v fetch > /dev/null 2>&1")
+      cmd("fetch", ["-o", output_path.to_s, url], Dir.current)
+    else
+      puts "Error: No download tool found. Please install curl or wget."
+      exit 1
+    end
+  {% end %}
+end
+
+def compile_amalgamation(source_path, output_path)
+  puts "--- Compiling #{source_path} to #{output_path} ---"
+
+  {% if flag?(:win32) %}
+    compile_cmd = ENV["CC"]? || "cl"
+    compile_args = [
+      "/nologo",
+      "/O2",
+      "/c",
+      source_path.to_s,
+      "/Fo#{output_path}/lxb.obj",
+    ]
+
+    if env_flags = ENV["CFLAGS"]?
+      compile_args += env_flags.split
+    end
+
+    cmd(compile_cmd, compile_args, Dir.current)
+
+    lib_cmd = ENV["LIB"]? || "lib"
+    lib_args = [
+      "/nologo",
+      "/out:#{output_path}/lexbor_static.lib",
+      "#{output_path}/lxb.obj",
+    ]
+
+    if env_lflags = ENV["LDFLAGS"]?
+      lib_args += env_lflags.split
+    end
+
+    cmd(lib_cmd, lib_args, Dir.current)
+
+    link_cmd = ENV["LD"]? || "link"
+    dll_args = [
+      "/nologo",
+      "/DLL",
+      "/out:#{output_path}/lxb.dll",
+      "#{output_path}/lxb.obj",
+    ]
+
+    if env_lflags = ENV["LDFLAGS"]?
+      dll_args += env_lflags.split
+    end
+
+    cmd(link_cmd, dll_args, Dir.current)
+
+    puts "--- Removing temporary files ---"
+    File.delete("#{output_path}/lxb.obj") if File.exists?("#{output_path}/lxb.obj")
+    File.delete(source_path) if File.exists?(source_path)
+
+    puts "--- Static library created: #{output_path}/lexbor_static.lib ---"
+    puts "--- Dynamic library created: #{output_path}/lxb.dll ---"
+  {% else %}
+    compile_cmd = ENV["CC"]? || "cc"
+    compile_args = [
+      "-O3",
+      "-c",
+      source_path.to_s,
+      "-o", "#{output_path}/lxb.o",
+      "-fPIC",
+    ]
+
+    if env_flags = ENV["CFLAGS"]?
+      compile_args += env_flags.split
+    end
+
+    cmd(compile_cmd, compile_args, Dir.current)
+
+    ar_cmd = ENV["AR"]? || "ar"
+    ar_args = [
+      "rcs",
+      "#{output_path}/liblxb.a",
+      "#{output_path}/lxb.o",
+    ]
+
+    if env_arflags = ENV["ARFLAGS"]?
+      ar_args += env_arflags.split
+    end
+
+    cmd(ar_cmd, ar_args, Dir.current)
+
+    ld_cmd = ENV["LD"]? || compile_cmd
+    so_args = [
+      "-shared",
+      "-o", "#{output_path}/liblxb.so",
+      "#{output_path}/lxb.o",
+    ]
+
+    {% if flag?(:darwin) %}
+      so_args = [
+        "-shared",
+        "-o", "#{output_path}/liblxb.dylib",
+        "#{output_path}/lxb.o",
+      ]
+    {% end %}
+
+    if env_lflags = ENV["LDFLAGS"]?
+      so_args += env_lflags.split
+    end
+
+    cmd(ld_cmd, so_args, Dir.current)
+
+    puts "--- Removing temporary files ---"
+    File.delete("#{output_path}/lxb.o") if File.exists?("#{output_path}/lxb.o")
+    File.delete(source_path) if File.exists?(source_path)
+
+    puts "--- Static library created: #{output_path}/liblxb.a ---"
+    {% if flag?(:darwin) %}
+      puts "--- Dynamic library created: #{output_path}/liblxb.dylib ---"
+    {% else %}
+      puts "--- Dynamic library created: #{output_path}/liblxb.so ---"
+    {% end %}
+  {% end %}
+end
+
 current_dir = Path[__FILE__].parent
-lexbor_c_path = current_dir / "lexbor-c"
+ext_dir = current_dir / "lxb"
 
-cmd("git", ["clone", "https://github.com/lexbor/lexbor.git", lexbor_c_path.to_s], current_dir) unless File.directory?(lexbor_c_path)
+Dir.mkdir(ext_dir) unless File.directory?(ext_dir)
 
-# Checkout to the specific SHA
-cmd("git", ["reset", "--hard", File.read(current_dir / "revision").strip], lexbor_c_path)
+revision_file = current_dir / "revision"
+if File.exists?(revision_file)
+  version = File.read(revision_file).strip
+else
+  version = "v2.7.0"
+end
 
-# Make the build directory
-lexbor_build_path = lexbor_c_path / "build"
-Dir.mkdir(lexbor_build_path) unless File.directory?(lexbor_build_path)
+amalgamation_url = "https://lexbor.com/api/amalgamation?version=#{version}&modules=core%2Ccss%2Cencoding%2Chtml%2Cselectors&ext=c"
+amalgamation_file = ext_dir / "lxb.c"
 
-cmake_args = [
-  "..",
-  "-DCMAKE_BUILD_TYPE=Release",
-  "-DLEXBOR_BUILD_TESTS_CPP=OFF",
-  "-DLEXBOR_INSTALL_HEADERS=OFF",
-  "-DLEXBOR_BUILD_SHARED=ON",
-]
+download_file(amalgamation_url, amalgamation_file)
+compile_amalgamation(amalgamation_file, ext_dir)
 
-{% if flag?(:win32) %}
-  cmake_args << "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
-  cmake_args << "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"
-  cmake_args << "-G"
-  cmake_args << "NMake Makefiles"
-{% else %}
-  cmake_args << "-G"
-  cmake_args << "Unix Makefiles"
-{% end %}
-
-cmd("cmake", cmake_args, lexbor_build_path)
-cmd("cmake", ["--build", ".", "--config", "Release", "-j", {System.cpu_count, 4}.min.to_s], lexbor_build_path)
+puts "--- Build completed successfully ---"

@@ -4,12 +4,6 @@
 
 Fast HTML5 Parser with CSS selectors (based on lexborisov's HTML5 parser [lexbor](https://github.com/lexbor/lexbor)). This is successor of [myhtml](https://github.com/kostya/myhtml) and expected to be faster and use less memory. Usage is almost equal to myhtml.
 
-## Installation
-
-Install dependency cmake:
-
-    sudo apt install cmake
-
 Add this to your application's `shard.yml`:
 
 ```yaml

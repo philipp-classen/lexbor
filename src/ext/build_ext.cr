@@ -233,7 +233,7 @@ revision_file = current_dir / "revision"
 if File.exists?(revision_file)
   version = File.read(revision_file).strip
 else
-  version = "v2.7.0"
+  version = "master"
 end
 
 amalgamation_url = "https://lexbor.com/api/amalgamation?version=#{version}&modules=core%2Ccss%2Cencoding%2Chtml%2Cselectors&ext=c"

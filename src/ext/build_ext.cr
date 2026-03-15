@@ -1,5 +1,10 @@
 def cmd(cmd, args, chdir)
-  puts "--- '#{cmd} #{args.join(" ")}' (in #{chdir}) ---"
+  puts "--- COMMAND: '#{cmd}'"
+  puts "--- ARGS: #{args.inspect}"
+  puts "--- CHDIR: #{chdir}"
+  puts "--- ENV['LIB']: #{ENV["LIB"]?}"
+  puts "--- ENV['PATH']: #{ENV["PATH"]?}"
+  puts "--- FULL: '#{cmd} #{args.join(" ")}' (in #{chdir}) ---"
 
   Process.run(cmd, args: args, chdir: chdir.to_s, input: Process::Redirect::Inherit, output: Process::Redirect::Inherit, error: Process::Redirect::Inherit)
 
@@ -54,7 +59,10 @@ def compile_windows(source_path, output_path)
 
   cmd(compile_cmd, compile_args, Dir.current)
 
-  lib_cmd = ENV["LIB"]? || "lib"
+  puts "--- Searching for lib.exe ---"
+  system("where lib.exe")
+  
+  lib_cmd = "lib"
   lib_args = [
     "/nologo",
     "/out:#{output_path}/lexbor_static.lib",

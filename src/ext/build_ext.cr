@@ -62,7 +62,9 @@ def compile_windows(source_path, output_path)
   ]
 
   if env_lflags = ENV["LDFLAGS"]?
-    lib_args += env_lflags.split
+    env_lflags.split.each do |flag|
+      lib_args << flag
+    end
   end
 
   cmd(lib_cmd, lib_args, Dir.current)
@@ -76,7 +78,9 @@ def compile_windows(source_path, output_path)
   ]
 
   if env_lflags = ENV["LDFLAGS"]?
-    dll_args += env_lflags.split
+    env_lflags.split.each do |flag|
+      dll_args << flag
+    end
   end
 
   cmd(link_cmd, dll_args, Dir.current)

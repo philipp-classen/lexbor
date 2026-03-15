@@ -1,3 +1,6 @@
+## 3.6.0
+* [PROBABLY BREAKING CHANGE] remove cmake dependency, use amalgation build.
+
 ## 3.5.0
 * update liblexbor to version 2.7.0
 

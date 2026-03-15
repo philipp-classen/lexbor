@@ -38,15 +38,12 @@ def download_file(url, output_path)
   {% end %}
 end
 
-def compile_amalgamation(source_path, output_path)
-  puts "--- Compiling #{source_path} to #{output_path} ---"
+def compile_windows(source_path, output_path)
+  fixed_source = output_path / "lxb_fixed.c"
+  content = File.read(source_path)
+  content = content.gsub("#include <dirent.h>", "// #include <dirent.h>")
 
-  {% if flag?(:win32) %}
-    fixed_source = output_path / "lxb_fixed.c"
-
-    content = File.read(source_path)
-
-    fixes = <<-FIXES
+  fixes = <<-FIXES
 #define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
@@ -56,7 +53,6 @@ def compile_amalgamation(source_path, output_path)
 #include <stdlib.h>
 #include <string.h>
 
-// Эмуляция dirent.h для Windows
 struct dirent {
     char d_name[260];
 };
@@ -113,117 +109,118 @@ int closedir(DIR *dir) {
 
 FIXES
 
-    File.write(fixed_source, fixes + content)
+  File.write(fixed_source, fixes + content)
 
-    compile_cmd = ENV["CC"]? || "cl"
-    compile_args = [
-      "/nologo",
-      "/O2",
-      "/c",
-      fixed_source.to_s,
-      "/Fo#{output_path}/lxb.obj",
-    ]
+  compile_cmd = ENV["CC"]? || "cl"
+  compile_args = [
+    "/nologo",
+    "/O2",
+    "/c",
+    fixed_source.to_s,
+    "/Fo#{output_path}/lxb.obj",
+  ]
 
-    if env_flags = ENV["CFLAGS"]?
-      compile_args += env_flags.split
-    end
+  if env_flags = ENV["CFLAGS"]?
+    compile_args += env_flags.split
+  end
 
-    cmd(compile_cmd, compile_args, Dir.current)
+  cmd(compile_cmd, compile_args, Dir.current)
 
-    lib_cmd = ENV["LIB"]? || "lib"
-    lib_args = [
-      "/nologo",
-      "/out:#{output_path}/lexbor_static.lib",
-      "#{output_path}/lxb.obj",
-    ]
+  lib_cmd = ENV["LIB"]? || "lib"
+  lib_args = [
+    "/nologo",
+    "/out:#{output_path}/lexbor_static.lib",
+    "#{output_path}/lxb.obj",
+  ]
 
-    if env_lflags = ENV["LDFLAGS"]?
-      lib_args += env_lflags.split
-    end
+  if env_lflags = ENV["LDFLAGS"]?
+    lib_args += env_lflags.split
+  end
 
-    cmd(lib_cmd, lib_args, Dir.current)
+  cmd(lib_cmd, lib_args, Dir.current)
 
-    link_cmd = ENV["LD"]? || "link"
-    dll_args = [
-      "/nologo",
-      "/DLL",
-      "/out:#{output_path}/lxb.dll",
-      "#{output_path}/lxb.obj",
-    ]
+  link_cmd = ENV["LD"]? || "link"
+  dll_args = [
+    "/nologo",
+    "/DLL",
+    "/out:#{output_path}/lxb.dll",
+    "#{output_path}/lxb.obj",
+  ]
 
-    if env_lflags = ENV["LDFLAGS"]?
-      dll_args += env_lflags.split
-    end
+  if env_lflags = ENV["LDFLAGS"]?
+    dll_args += env_lflags.split
+  end
 
-    cmd(link_cmd, dll_args, Dir.current)
+  cmd(link_cmd, dll_args, Dir.current)
 
-    puts "--- Removing temporary files ---"
-    File.delete("#{output_path}/lxb.obj") if File.exists?("#{output_path}/lxb.obj")
-    File.delete(fixed_source) if File.exists?(fixed_source)
-    File.delete(source_path) if File.exists?(source_path)
+  puts "--- Removing temporary files ---"
+  File.delete("#{output_path}/lxb.obj") if File.exists?("#{output_path}/lxb.obj")
+  File.delete(fixed_source) if File.exists?(fixed_source)
+  File.delete(source_path) if File.exists?(source_path)
 
-    puts "--- Static library created: #{output_path}/lexbor_static.lib ---"
-    puts "--- Dynamic library created: #{output_path}/lxb.dll ---"
-  {% else %}
-    compile_cmd = ENV["CC"]? || "cc"
-    compile_args = [
-      "-O3",
-      "-c",
-      source_path.to_s,
-      "-o", "#{output_path}/lxb.o",
-      "-fPIC",
-    ]
+  puts "--- Static library created: #{output_path}/lexbor_static.lib ---"
+  puts "--- Dynamic library created: #{output_path}/lxb.dll ---"
+end
 
-    if env_flags = ENV["CFLAGS"]?
-      compile_args += env_flags.split
-    end
+def compile_unix(source_path, output_path)
+  compile_cmd = ENV["CC"]? || "cc"
+  compile_args = [
+    "-O3",
+    "-c",
+    source_path.to_s,
+    "-o", "#{output_path}/lxb.o",
+    "-fPIC",
+  ]
 
-    cmd(compile_cmd, compile_args, Dir.current)
+  if env_flags = ENV["CFLAGS"]?
+    compile_args += env_flags.split
+  end
 
-    ar_cmd = ENV["AR"]? || "ar"
-    ar_args = [
-      "rcs",
-      "#{output_path}/liblxb.a",
-      "#{output_path}/lxb.o",
-    ]
+  cmd(compile_cmd, compile_args, Dir.current)
 
-    if env_arflags = ENV["ARFLAGS"]?
-      ar_args += env_arflags.split
-    end
+  ar_cmd = ENV["AR"]? || "ar"
+  ar_args = [
+    "rcs",
+    "#{output_path}/liblxb.a",
+    "#{output_path}/lxb.o",
+  ]
 
-    cmd(ar_cmd, ar_args, Dir.current)
+  if env_arflags = ENV["ARFLAGS"]?
+    ar_args += env_arflags.split
+  end
 
-    ld_cmd = ENV["LD"]? || compile_cmd
+  cmd(ar_cmd, ar_args, Dir.current)
+
+  ld_cmd = ENV["LD"]? || compile_cmd
+  so_args = [
+    "-shared",
+    "-o", "#{output_path}/liblxb.so",
+    "#{output_path}/lxb.o",
+  ]
+
+  {% if flag?(:darwin) %}
     so_args = [
       "-shared",
-      "-o", "#{output_path}/liblxb.so",
+      "-o", "#{output_path}/liblxb.dylib",
       "#{output_path}/lxb.o",
     ]
+  {% end %}
 
-    {% if flag?(:darwin) %}
-      so_args = [
-        "-shared",
-        "-o", "#{output_path}/liblxb.dylib",
-        "#{output_path}/lxb.o",
-      ]
-    {% end %}
+  if env_lflags = ENV["LDFLAGS"]?
+    so_args += env_lflags.split
+  end
 
-    if env_lflags = ENV["LDFLAGS"]?
-      so_args += env_lflags.split
-    end
+  cmd(ld_cmd, so_args, Dir.current)
 
-    cmd(ld_cmd, so_args, Dir.current)
+  puts "--- Removing temporary files ---"
+  File.delete("#{output_path}/lxb.o") if File.exists?("#{output_path}/lxb.o")
+  File.delete(source_path) if File.exists?(source_path)
 
-    puts "--- Removing temporary files ---"
-    File.delete("#{output_path}/lxb.o") if File.exists?("#{output_path}/lxb.o")
-    File.delete(source_path) if File.exists?(source_path)
-
-    puts "--- Static library created: #{output_path}/liblxb.a ---"
-    {% if flag?(:darwin) %}
-      puts "--- Dynamic library created: #{output_path}/liblxb.dylib ---"
-    {% else %}
-      puts "--- Dynamic library created: #{output_path}/liblxb.so ---"
-    {% end %}
+  puts "--- Static library created: #{output_path}/liblxb.a ---"
+  {% if flag?(:darwin) %}
+    puts "--- Dynamic library created: #{output_path}/liblxb.dylib ---"
+  {% else %}
+    puts "--- Dynamic library created: #{output_path}/liblxb.so ---"
   {% end %}
 end
 
@@ -243,6 +240,11 @@ amalgamation_url = "https://lexbor.com/api/amalgamation?version=#{version}&modul
 amalgamation_file = ext_dir / "lxb.c"
 
 download_file(amalgamation_url, amalgamation_file)
-compile_amalgamation(amalgamation_file, ext_dir)
+
+{% if flag?(:win32) %}
+  compile_windows(amalgamation_file, ext_dir)
+{% else %}
+  compile_unix(amalgamation_file, ext_dir)
+{% end %}
 
 puts "--- Build completed successfully ---"

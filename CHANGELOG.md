@@ -1,3 +1,6 @@
+## 3.6.1
+* Fix windows builds
+
 ## 3.6.0
 * [PROBABLY BREAKING CHANGE] remove cmake dependency, use amalgation build.
 

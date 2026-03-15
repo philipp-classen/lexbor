@@ -39,84 +39,12 @@ def download_file(url, output_path)
 end
 
 def compile_windows(source_path, output_path)
-  fixed_source = output_path / "lxb_fixed.c"
-  content = File.read(source_path)
-  content = content.gsub("#include <dirent.h>", "// #include <dirent.h>")
-
-  fixes = <<-FIXES
-#define _CRT_SECURE_NO_WARNINGS
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
-#ifdef _MSC_VER
-#include <windows.h>
-#include <io.h>
-#include <stdlib.h>
-#include <string.h>
-
-struct dirent {
-    char d_name[260];
-};
-
-typedef struct DIR {
-    intptr_t handle;
-    struct _finddata_t data;
-    struct dirent ent;
-    int first;
-} DIR;
-
-DIR *opendir(const char *path) {
-    DIR *dir = (DIR*)malloc(sizeof(DIR));
-    if (!dir) return NULL;
-    
-    char search_path[1024];
-    snprintf(search_path, sizeof(search_path), "%s/*", path);
-    
-    dir->handle = _findfirst(search_path, &dir->data);
-    dir->first = 1;
-    
-    if (dir->handle == -1) {
-        free(dir);
-        return NULL;
-    }
-    
-    return dir;
-}
-
-struct dirent *readdir(DIR *dir) {
-    if (!dir) return NULL;
-    
-    if (dir->first) {
-        dir->first = 0;
-    } else {
-        if (_findnext(dir->handle, &dir->data) != 0) {
-            return NULL;
-        }
-    }
-    
-    strncpy(dir->ent.d_name, dir->data.name, sizeof(dir->ent.d_name) - 1);
-    dir->ent.d_name[sizeof(dir->ent.d_name) - 1] = '\\0';
-    
-    return &dir->ent;
-}
-
-int closedir(DIR *dir) {
-    if (!dir) return -1;
-    _findclose(dir->handle);
-    free(dir);
-    return 0;
-}
-#endif
-
-FIXES
-
-  File.write(fixed_source, fixes + content)
-
   compile_cmd = ENV["CC"]? || "cl"
   compile_args = [
     "/nologo",
     "/O2",
     "/c",
-    fixed_source.to_s,
+    source_path.to_s,
     "/Fo#{output_path}/lxb.obj",
   ]
 
@@ -155,7 +83,6 @@ FIXES
 
   puts "--- Removing temporary files ---"
   File.delete("#{output_path}/lxb.obj") if File.exists?("#{output_path}/lxb.obj")
-  File.delete(fixed_source) if File.exists?(fixed_source)
   File.delete(source_path) if File.exists?(source_path)
 
   puts "--- Static library created: #{output_path}/lexbor_static.lib ---"

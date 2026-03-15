@@ -53,18 +53,20 @@ def compile_amalgamation(source_path, output_path)
 #ifdef _MSC_VER
 #include <windows.h>
 #include <io.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Эмуляция dirent.h для Windows
 struct dirent {
-    char d_name[256];
+    char d_name[260];
 };
 
-struct DIR {
+typedef struct DIR {
     intptr_t handle;
     struct _finddata_t data;
     struct dirent ent;
-    char first;
-};
+    int first;
+} DIR;
 
 DIR *opendir(const char *path) {
     DIR *dir = (DIR*)malloc(sizeof(DIR));
@@ -120,7 +122,6 @@ FIXES
       "/c",
       fixed_source.to_s,
       "/Fo#{output_path}/lxb.obj",
-      "/D_CRT_SECURE_NO_WARNINGS",
     ]
 
     if env_flags = ENV["CFLAGS"]?

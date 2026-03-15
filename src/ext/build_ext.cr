@@ -61,12 +61,6 @@ def compile_windows(source_path, output_path)
     "#{output_path}/lxb.obj",
   ]
 
-  if env_lflags = ENV["LDFLAGS"]?
-    env_lflags.split.each do |flag|
-      lib_args << flag
-    end
-  end
-
   cmd(lib_cmd, lib_args, Dir.current)
 
   link_cmd = ENV["LD"]? || "link"

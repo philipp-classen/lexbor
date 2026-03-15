@@ -1,10 +1,5 @@
 def cmd(cmd, args, chdir)
-  puts "--- COMMAND: '#{cmd}'"
-  puts "--- ARGS: #{args.inspect}"
-  puts "--- CHDIR: #{chdir}"
-  puts "--- ENV['LIB']: #{ENV["LIB"]?}"
-  puts "--- ENV['PATH']: #{ENV["PATH"]?}"
-  puts "--- FULL: '#{cmd} #{args.join(" ")}' (in #{chdir}) ---"
+  puts "--- '#{cmd} #{args.join(" ")}' (in #{chdir}) ---"
 
   Process.run(cmd, args: args, chdir: chdir.to_s, input: Process::Redirect::Inherit, output: Process::Redirect::Inherit, error: Process::Redirect::Inherit)
 
@@ -59,9 +54,6 @@ def compile_windows(source_path, output_path)
 
   cmd(compile_cmd, compile_args, Dir.current)
 
-  puts "--- Searching for lib.exe ---"
-  system("where lib.exe")
-  
   lib_cmd = "lib"
   lib_args = [
     "/nologo",
@@ -71,19 +63,13 @@ def compile_windows(source_path, output_path)
 
   cmd(lib_cmd, lib_args, Dir.current)
 
-  link_cmd = ENV["LD"]? || "link"
+  link_cmd = "link"
   dll_args = [
     "/nologo",
     "/DLL",
     "/out:#{output_path}/lxb.dll",
     "#{output_path}/lxb.obj",
   ]
-
-  if env_lflags = ENV["LDFLAGS"]?
-    env_lflags.split.each do |flag|
-      dll_args << flag
-    end
-  end
 
   cmd(link_cmd, dll_args, Dir.current)
 

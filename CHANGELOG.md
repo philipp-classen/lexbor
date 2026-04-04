@@ -1,3 +1,6 @@
+## 3.6.2
+* update liblexbor v3.0.0
+
 ## 3.6.1
 * Fix windows builds
 

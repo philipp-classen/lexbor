@@ -1,3 +1,10 @@
+require "http/client"
+require "digest/sha256"
+
+VERSION = "v3.0.0"
+URL     = "https://lexbor.com/api/amalgamation?version=#{VERSION}&modules=core%2Ccss%2Cencoding%2Chtml%2Cselectors&ext=c"
+SHA256  = "09953402ef7f162de0d22c654603bb435b18f119813df985469f5be11471d6d0"
+
 def cmd(cmd, args, chdir)
   puts "--- '#{cmd} #{args.join(" ")}' (in #{chdir}) ---"
 
@@ -9,33 +16,21 @@ def cmd(cmd, args, chdir)
   end
 end
 
-def download_file(url, output_path)
+def download_file(url : String, expected_sha256 : String, save_to output_path)
   puts "--- Downloading #{url} to #{output_path} ---"
 
-  {% if flag?(:win32) %}
-    if system("where curl > nul 2>&1")
-      cmd("curl", ["-L", url, "-o", output_path.to_s], Dir.current)
-    elsif system("where wget > nul 2>&1")
-      cmd("wget", ["-O", output_path.to_s, url], Dir.current)
-    elsif system("where powershell > nul 2>&1")
-      ps_command = "Invoke-WebRequest -Uri '#{url}' -OutFile '#{output_path}'"
-      cmd("powershell", ["-Command", ps_command], Dir.current)
-    else
-      puts "Error: No download tool found. Please install curl or wget."
-      exit 1
-    end
-  {% else %}
-    if system("command -v curl > /dev/null 2>&1")
-      cmd("curl", ["-L", url, "-o", output_path.to_s], Dir.current)
-    elsif system("command -v wget > /dev/null 2>&1")
-      cmd("wget", ["-O", output_path.to_s, url], Dir.current)
-    elsif system("command -v fetch > /dev/null 2>&1")
-      cmd("fetch", ["-o", output_path.to_s, url], Dir.current)
-    else
-      puts "Error: No download tool found. Please install curl or wget."
-      exit 1
-    end
-  {% end %}
+  response = HTTP::Client.get(url)
+  unless response.success?
+    abort "Download failed: #{response.status_code} #{response.status_message}"
+  end
+
+  actual = Digest::SHA256.hexdigest(response.body)
+  if actual.downcase != expected_sha256.downcase
+    abort "SHA-256 mismatch for #{url}: expected #{expected_sha256}, got #{actual}"
+  end
+
+  File.write(output_path, response.body)
+  puts "--- SHA-256 OK: #{actual} ---"
 end
 
 def compile_windows(source_path, output_path)
@@ -148,17 +143,8 @@ ext_dir = current_dir / "lxb"
 
 Dir.mkdir(ext_dir) unless File.directory?(ext_dir)
 
-revision_file = current_dir / "revision"
-if File.exists?(revision_file)
-  version = File.read(revision_file).strip
-else
-  version = "master"
-end
-
-amalgamation_url = "https://lexbor.com/api/amalgamation?version=#{version}&modules=core%2Ccss%2Cencoding%2Chtml%2Cselectors&ext=c"
 amalgamation_file = ext_dir / "lxb.c"
-
-download_file(amalgamation_url, amalgamation_file)
+download_file(URL, SHA256, save_to: amalgamation_file)
 
 {% if flag?(:win32) %}
   compile_windows(amalgamation_file, ext_dir)
